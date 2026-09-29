@@ -1,6 +1,249 @@
-import {useEffect,useMemo,useState} from 'react';
-import {AlertTriangle,Check,ChevronDown,Download,FileCode2,Info,Layers3,Plus,Search,ShieldCheck,Sparkles,Upload, X} from 'lucide-react';
-type Dep={id:number;name:string;version:string;license:string;source:string;status:'ok'|'warn'|'risk';note:string};
-const initial:Dep[]=[{id:1,name:'react',version:'18.3.1',license:'MIT',source:'npm',status:'ok',note:'宽松许可，可商用'}, {id:2,name:'lodash',version:'4.17.21',license:'MIT',source:'npm',status:'ok',note:'宽松许可，可商用'}, {id:3,name:'chart.js',version:'4.4.4',license:'MIT',source:'npm',status:'ok',note:'宽松许可，可商用'}, {id:4,name:'highlight.js',version:'11.10.0',license:'BSD-3-Clause',source:'npm',status:'warn',note:'再发布需保留版权声明'}, {id:5,name:'legacy-parser',version:'2.1.0',license:'GPL-3.0',source:'手动',status:'risk',note:'可能与闭源分发冲突'}];
-const colors:Record<string,string>={MIT:'#35b995','BSD-3-Clause':'#6d9ee8','GPL-3.0':'#ec8c75','Apache-2.0':'#b18ee4'};
-export default function App(){const [deps,setDeps]=useState<Dep[]>(()=>{try{return JSON.parse(localStorage.getItem('license-lens')||'')||initial}catch{return initial}});const [query,setQuery]=useState('');const [filter,setFilter]=useState('全部');const [selected,setSelected]=useState(1);const [showAdd,setShowAdd]=useState(false);const [name,setName]=useState('');const [license,setLicense]=useState('MIT');const current=deps.find(d=>d.id===selected);useEffect(()=>localStorage.setItem('license-lens',JSON.stringify(deps)),[deps]);const filtered=useMemo(()=>deps.filter(d=>(filter==='全部'||d.status===filter)&&`${d.name}${d.license}`.toLowerCase().includes(query.toLowerCase())),[deps,filter,query]);const add=()=>{if(!name.trim())return;const id=Date.now();setDeps(ds=>[...ds,{id,name:name.trim(),version:'1.0.0',license,source:'手动',status:license.startsWith('GPL')?'risk':license==='MIT'?'ok':'warn',note:license==='MIT'?'宽松许可，可商用':'请核对分发义务'}]);setSelected(id);setName('');setShowAdd(false)};const exportMd=()=>{const text=`# License Lens\n\n| 依赖 | 版本 | 许可证 | 状态 |\n|---|---|---|---|\n${deps.map(d=>`| ${d.name} | ${d.version} | ${d.license} | ${d.status} |`).join('\n')}`;const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:'text/markdown'}));a.download='license-report.md';a.click();URL.revokeObjectURL(a.href)};return <div className="shell"><aside><div className="brand"><div className="brand-icon"><ShieldCheck size={18}/></div><div><b>License Lens</b><small>dependency clarity</small></div></div><div className="nav-title">WORKSPACE</div><button className="nav active"><Layers3 size={16}/>依赖总览</button><button className="nav"><FileCode2 size={16}/>许可证清单 <span>{deps.length}</span></button><button className="nav"><AlertTriangle size={16}/>待处理风险 <span className="red">{deps.filter(d=>d.status==='risk').length}</span></button><div className="aside-bottom"><div className="mini-card"><Sparkles size={16}/><div><b>扫描已更新</b><small>刚刚完成 5 个依赖的分析</small></div></div><div className="user"><div className="avatar">ZL</div><span>Zen Li</span><ChevronDown size={14}/></div></div></aside><main><header><div><div className="crumb">WORKSPACE / <b>PROJECT SCAN</b></div><h1>许可证兼容性分析</h1><p>检查依赖许可，放心发布你的项目。</p></div><div className="head-actions"><button className="outline" onClick={exportMd}><Download size={15}/>导出报告</button><button className="primary" onClick={()=>setShowAdd(true)}><Plus size={16}/>添加依赖</button></div></header><section className="hero"><div><span className="tag">PROJECT · AURORA-WEB</span><h2>发布前，再确认一次。</h2><p>我们扫描了 <b>{deps.length} 个依赖</b>，发现 <b className="warning">{deps.filter(d=>d.status!=='ok').length} 个项目</b>需要你的关注。</p></div><div className="scan-score"><div className="score-ring"><strong>{Math.round(deps.filter(d=>d.status==='ok').length/deps.length*100)}<small>%</small></strong></div><div><span>兼容评分</span><b>良好</b><small>上次扫描 2 分钟前</small></div></div></section><section className="summary"><div><span>全部依赖</span><b>{deps.length}</b><small>+2 本次新增</small></div><div><span>安全许可</span><b className="teal">{deps.filter(d=>d.status==='ok').length}</b><small>可直接分发</small></div><div><span>需要复核</span><b className="orange">{deps.filter(d=>d.status==='warn').length}</b><small>保留声明即可</small></div><div><span>高风险</span><b className="red">{deps.filter(d=>d.status==='risk').length}</b><small>建议替换或隔离</small></div></section><section className="workspace"><div className="table-pane"><div className="pane-head"><div><h2>依赖清单</h2><p>逐项查看许可证义务</p></div><div className="tools"><div className="search"><Search size={15}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="搜索依赖"/></div><select value={filter} onChange={e=>setFilter(e.target.value)}><option value="全部">全部状态</option><option value="ok">安全</option><option value="warn">复核</option><option value="risk">高风险</option></select></div></div><div className="table"><div className="tr th"><span>依赖名称</span><span>版本</span><span>许可证</span><span>状态</span></div>{filtered.map(d=><button className={d.id===selected?'tr selected':'tr'} key={d.id} onClick={()=>setSelected(d.id)}><span className="dep-name"><span className="pkg-dot"/> {d.name}</span><span className="muted">{d.version}</span><span><i className="license" style={{color:colors[d.license]||'#888',background:(colors[d.license]||'#888')+'18'}}>{d.license}</i></span><span className={'status '+d.status}>{d.status==='ok'?<Check size={13}/>:<AlertTriangle size={13}/>} {d.status==='ok'?'安全':d.status==='warn'?'复核':'高风险'}</span></button>)}</div></div>{current&&<div className="detail"><div className="detail-head"><div className="detail-icon" style={{background:(colors[current.license]||'#888')+'1c',color:colors[current.license]}}><FileCode2 size={20}/></div><div><span>SELECTED DEPENDENCY</span><h2>{current.name}</h2></div><button className="close" onClick={()=>setSelected(0)}><X size={16}/></button></div><div className="detail-grid"><div><label>版本</label><b>{current.version}</b></div><div><label>来源</label><b>{current.source}</b></div><div><label>许可证</label><b>{current.license}</b></div></div><div className={'finding '+current.status}><div className="finding-icon">{current.status==='ok'?<Check size={16}/>:<AlertTriangle size={16}/>}</div><div><b>{current.status==='ok'?'可以放心使用':current.status==='warn'?'需要保留声明':'存在分发限制'}</b><p>{current.note}。扫描结果基于 package 元数据，请在发布前查看完整许可证文本。</p></div></div><div className="full-license"><div><Info size={15}/><span>许可证摘要</span></div><p>{current.license} 允许在满足其条款的前提下使用和分发代码。详细义务请参考项目仓库中的 LICENSE 文件。</p><button>查看原文 <ChevronDown size={14}/></button></div></div>}</section></main>{showAdd&&<div className="backdrop" onClick={()=>setShowAdd(false)}><div className="modal" onClick={e=>e.stopPropagation()}><div className="modal-head"><h2>添加依赖</h2><button onClick={()=>setShowAdd(false)}>×</button></div><label>依赖名称<input autoFocus value={name} onChange={e=>setName(e.target.value)} placeholder="例如 date-fns"/></label><label>许可证<select value={license} onChange={e=>setLicense(e.target.value)}><option>MIT</option><option>BSD-3-Clause</option><option>Apache-2.0</option><option>GPL-3.0</option></select></label><button className="primary full" onClick={add}>加入扫描</button></div></div>}</div>}
+import { useEffect, useRef, useState } from 'react';
+import {
+  AlertTriangle,
+  ChevronDown,
+  Download,
+  FileCode2,
+  Layers3,
+  Plus,
+  RefreshCw,
+  ShieldCheck,
+  Sparkles,
+  X,
+} from 'lucide-react';
+import {
+  buildManifestMarkdown,
+  commitBatch,
+  createParsingBatch,
+  failBatch,
+  getActiveBatch,
+  getManifest,
+  loadLedger,
+  parseLockfile,
+  removeBatch,
+  retryToParsing,
+  saveLedger,
+  seedLedger,
+  setActive,
+  setVerdict,
+  uid,
+  type Ledger,
+  type Verdict,
+} from './ledger';
+import Overview from './views/Overview';
+import Batches from './views/Batches';
+import Manifest from './views/Manifest';
+
+type View = 'overview' | 'batches' | 'manifest';
+
+export default function App() {
+  const [ledger, setLedger] = useState<Ledger>(() => {
+    const loaded = loadLedger();
+    return loaded.batches.length > 0 ? loaded : seedLedger();
+  });
+  const [view, setView] = useState<View>('overview');
+  const [selectedFp, setSelectedFp] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+  const importRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    saveLedger(ledger);
+  }, [ledger]);
+
+  // 跨窗口同步：另一个标签页写入台账时，若本页没有在途解析（parsing）批次，
+  // 就采用对方的最新台账，避免旧状态覆盖新批次。有在途导入时不打断，提交走函数式合并。
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== 'license-lens-ledger-v1') return;
+      setLedger((prev) => {
+        if (prev.batches.some((b) => b.status === 'parsing')) return prev;
+        try {
+          const next = JSON.parse(e.newValue || 'null');
+          if (next && next.version === 1 && Array.isArray(next.batches) && next.registry) {
+            return next as Ledger;
+          }
+        } catch {
+          /* 忽略损坏的跨窗口数据 */
+        }
+        return prev;
+      });
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 3600);
+    return () => clearTimeout(t);
+  }, [toast]);
+
+  const activeBatch = getActiveBatch(ledger);
+  const manifest = getManifest(ledger, activeBatch);
+  const pendingCount = manifest.pending.length;
+  const batchCount = ledger.batches.length;
+
+  // 导入：先占位“解析中”批次，解析成功才原子提交，失败只标记 failed（不留半包）。
+  // 两个并行导入各自持有独立 batchId，并通过函数式 setState 合并，不会混成一批。
+  const importFile = async (file: File) => {
+    const text = await file.text();
+    const batchId = uid('batch');
+    setLedger((prev) => createParsingBatch(prev, batchId, file.name));
+    try {
+      const packages = await parseLockfile(file.name, text);
+      setLedger((prev) => commitBatch(prev, batchId, file.name, packages));
+      setToast(`已导入「${file.name}」，解析出 ${packages.length} 个包`);
+      setView('overview');
+      setSelectedFp(null);
+    } catch (e) {
+      setLedger((prev) => failBatch(prev, batchId, (e as Error).message));
+      setToast(`导入失败：${(e as Error).message}`);
+    }
+  };
+
+  // 重试：回到 parsing 重新解析，成功提交、失败仍为 failed，已确认批次不受影响。
+  const retryFile = async (batchId: string, file: File) => {
+    const text = await file.text();
+    setLedger((prev) => retryToParsing(prev, batchId));
+    try {
+      const packages = await parseLockfile(file.name, text);
+      setLedger((prev) => commitBatch(prev, batchId, file.name, packages));
+      setToast(`重试成功：「${file.name}」已就绪，${packages.length} 个包`);
+    } catch (e) {
+      setLedger((prev) => failBatch(prev, batchId, (e as Error).message));
+      setToast(`重试仍失败：${(e as Error).message}`);
+    }
+  };
+
+  const doVerdict = (fp: string, v: Verdict) => {
+    if (!activeBatch) return;
+    setLedger((prev) => setVerdict(prev, activeBatch.id, fp, v));
+  };
+
+  const activate = (batchId: string) => {
+    setLedger((prev) => setActive(prev, batchId));
+    setView('overview');
+    setSelectedFp(null);
+  };
+
+  const remove = (batchId: string) => {
+    setLedger((prev) => removeBatch(prev, batchId));
+  };
+
+  const exportReport = () => {
+    const text = buildManifestMarkdown(ledger);
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([text], { type: 'text/markdown' }));
+    a.download = 'release-manifest.md';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
+  const nav = (
+    <>
+      <button className={'nav' + (view === 'overview' ? ' active' : '')} onClick={() => setView('overview')}>
+        <Layers3 size={16} />
+        依赖总览
+      </button>
+      <button className={'nav' + (view === 'batches' ? ' active' : '')} onClick={() => setView('batches')}>
+        <FileCode2 size={16} />
+        批次台账
+        <span>{batchCount}</span>
+      </button>
+      <button className={'nav' + (view === 'manifest' ? ' active' : '')} onClick={() => setView('manifest')}>
+        <ShieldCheck size={16} />
+        发布清单
+        {pendingCount > 0 && <span className="red">{pendingCount}</span>}
+      </button>
+    </>
+  );
+
+  return (
+    <div className="shell">
+      <aside>
+        <div className="brand">
+          <div className="brand-icon">
+            <ShieldCheck size={18} />
+          </div>
+          <div>
+            <b>License Lens</b>
+            <small>dependency ledger</small>
+          </div>
+        </div>
+        <div className="nav-title">WORKSPACE</div>
+        {nav}
+        <div className="aside-bottom">
+          <div className="mini-card">
+            <Sparkles size={16} />
+            <div>
+              <b>台账可恢复</b>
+              <small>批次独立 · 指纹识别 · 失败不留半包</small>
+            </div>
+          </div>
+          <div className="user">
+            <div className="avatar">ZL</div>
+            <span>Zen Li</span>
+            <ChevronDown size={14} />
+          </div>
+        </div>
+      </aside>
+
+      <main>
+        <header>
+          <div>
+            <div className="crumb">
+              WORKSPACE / <b>{view === 'overview' ? 'PROJECT SCAN' : view === 'batches' ? 'BATCH LEDGER' : 'RELEASE MANIFEST'}</b>
+            </div>
+            <h1>许可证兼容性分析</h1>
+            <p>批次化扫描台账：每个锁文件独立成批，按内容指纹继承裁决。</p>
+          </div>
+          <div className="head-actions">
+            <button className="outline" onClick={exportReport}>
+              <Download size={15} />
+              导出报告
+            </button>
+            <button className="primary" onClick={() => importRef.current?.click()}>
+              <Plus size={16} />
+              导入锁文件
+            </button>
+            <input
+              ref={importRef}
+              type="file"
+              accept=".json,application/json"
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) importFile(f);
+                e.target.value = '';
+              }}
+            />
+          </div>
+        </header>
+
+        {view === 'overview' && (
+          <Overview ledger={ledger} selectedFp={selectedFp} onSelect={setSelectedFp} onVerdict={doVerdict} />
+        )}
+        {view === 'batches' && (
+          <Batches
+            ledger={ledger}
+            onImportFile={importFile}
+            onRetryFile={retryFile}
+            onActivate={activate}
+            onRemove={remove}
+          />
+        )}
+        {view === 'manifest' && <Manifest ledger={ledger} />}
+      </main>
+
+      {toast && (
+        <div className="toast">
+          <RefreshCw size={14} />
+          <span>{toast}</span>
+          <button onClick={() => setToast(null)}>
+            <X size={14} />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
